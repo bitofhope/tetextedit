@@ -6,31 +6,45 @@
 */
 #include "text.h"
 
-line_t *mkline( line_t *at, const char *content )
+line_t *mkline( const char *content )
 {
-	line_t *other;
-	other = at->next;
 	line_t *new;
 	new = malloc(sizeof(line_t));
-	at->next = new;
-	new->prev = at;
-	new->next = other;
-	other->prev = new;
-	new->text = malloc(2);
+	new->prev = NULL;
+	new->next = NULL;
+	new->text = (content)?malloc(strlen(content+1)):malloc(2);
 	strcpy(new->text,(content)?content:"\n");
 	return new;
 }
 
+void insline( line_t *at, line_t *ln )
+{
+	if ( !at )
+		return;
+	line_t *other;
+	other = at->next;
+	at->next = ln;
+	ln->prev = at;
+	ln->next = other;
+	if ( other )
+		other->prev = ln;
+}
+
 void chline( line_t *at, const char *content )
 {
-	at->text = realloc(at->text,(content)?strlen(content+1):2);
+	if ( at->text )
+		at->text = realloc(at->text,(content)?strlen(content+1):2);
+	else
+		at->text = malloc((content)?strlen(content+1):2);
 	strcpy(at->text,(content)?content:"\n");
 }
 
 void rmline( line_t *at )
 {
-	at->prev->next = at->next;
-	at->next->prev = at->prev;
+	if ( at->prev )
+		at->prev->next = at->next;
+	if ( at->next )
+		at->next->prev = at->prev;
 	free(at->text);
 	free(at);
 }
@@ -56,26 +70,53 @@ line_t *lastline( line_t *lns )
 
 void freetext( line_t *txt )
 {
-	line_t *lines;
+	line_t *lines, *old;
 	lines = lastline(txt);
 	while ( lines )
 	{
-		if ( lines->text )
-			free(lines->text);
-		if ( lines->prev )
-		{
-			lines = lines->prev;
-			free(lines->next);
-		}
-		else
-		{
-			free(lines);
-			break;
-		}
+		old = lines;
+		lines = old->prev;
+		free(old->text);
+		free(old);
 	}
 }
 
-int readlines( FILE *from, line_t *to )
+line_t *readlines( FILE *from )
 {
-	return 1;
+	char *buf = NULL;
+	line_t *to = NULL;
+	line_t *cur = NULL;
+	int i = 0, j = 0, ch = 0;
+	line_t *nl = to;
+	fseek(from,j,SEEK_SET);
+	do
+	{
+		ch = fgetc(from);
+		if ( ch != '\n' )
+		{
+			i++;
+			continue;
+		}
+		buf = malloc((i-j)+1);
+		fseek(from,j,SEEK_SET);
+		fgets(buf,(i-j)+1,from);
+		nl = mkline(buf);
+		if ( !to )
+		{
+			to = nl;
+			cur = to;
+		}
+		else
+		{
+			insline(cur,nl);
+			cur = nl;
+		}
+		free(buf);
+		buf = NULL;
+		j = i+1;
+		fseek(from,i+1,SEEK_SET);
+		i++;
+	}
+	while ( ch != EOF );
+	return to;
 }
