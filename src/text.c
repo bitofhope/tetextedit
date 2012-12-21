@@ -13,7 +13,7 @@ line_t *mkline( const char *content )
 	new->prev = NULL;
 	new->next = NULL;
 	new->text = (content)?malloc(strlen(content+1)):malloc(2);
-	strcpy(new->text,(content)?content:"\n");
+	strcpy(new->text,(content)?content:"");
 	return new;
 }
 
@@ -36,17 +36,21 @@ void chline( line_t *at, const char *content )
 		at->text = realloc(at->text,(content)?strlen(content+1):2);
 	else
 		at->text = malloc((content)?strlen(content+1):2);
-	strcpy(at->text,(content)?content:"\n");
+	strcpy(at->text,(content)?content:"");
 }
 
-void rmline( line_t *at )
+line_t *rmline( line_t *at )
 {
+	line_t *ret = NULL;
 	if ( at->prev )
 		at->prev->next = at->next;
 	if ( at->next )
 		at->next->prev = at->prev;
+	if ( at->next )
+		ret = at->next;
 	free(at->text);
 	free(at);
+	return ret;
 }
 
 line_t *lineat( line_t *lns, int pos )
@@ -92,6 +96,11 @@ line_t *readlines( FILE *from )
 	do
 	{
 		ch = fgetc(from);
+		if ( (ch == EOF) && (i == 0) )
+		{
+			to = mkline(NULL);
+			return to;
+		}
 		if ( ch != '\n' )
 		{
 			i++;
