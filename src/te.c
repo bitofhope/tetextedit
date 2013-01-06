@@ -10,7 +10,7 @@
 #include <stdarg.h>
 #include "text.h"
 
-const char *_te_ver = "0.0.3";
+const char *_te_ver = "0.0.4";
 
 char *filen = NULL;
 FILE *doc = NULL;
@@ -176,7 +176,7 @@ int parsecmd( const char *cmd )
 		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
 		{
-			printf("te: not a number");
+			printf("te: not a number\n");
 			return 1;
 		}
 		int pos = atoi(cmd+1);
@@ -200,7 +200,7 @@ int parsecmd( const char *cmd )
 		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
 		{
-			printf("te: not a number");
+			printf("te: not a number\n");
 			return 1;
 		}
 		int pos = atoi(cmd+1);
@@ -234,7 +234,7 @@ int parsecmd( const char *cmd )
 		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
 		{
-			printf("te: not a number");
+			printf("te: not a number\n");
 			return 1;
 		}
 		int c = atoi(cmd+1);
