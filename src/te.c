@@ -4,21 +4,70 @@
 	te is a text editor.
 	Released under the MIT License.
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
 #include "text.h"
+#include <stdarg.h>
 
-const char *_te_ver = "0.0.1";
+static const char *_te_ver = "0.0.1";
 
-char *filen = NULL;
-FILE *doc = NULL;
-char **lines = NULL;
-int linec = 0;
-int cur = 0;
+static char *filen = NULL;
+static FILE *doc = NULL;
+static char **lines = NULL;
+static int linec = 0;
+static int cur = 0;
+static int terrno = 0;
+static int verrmsg = 0;
 
-int err( const char *mesg, ... )
+static void lasterror( void )
+{
+	switch ( terrno )
+	{
+	case 0:
+		puts("No error");
+		break;
+	case 1:
+		puts("Out of range");
+		break;
+	case 2:
+		puts("Not a number");
+		break;
+	case 3:
+		puts("Out of memory");
+		break;
+	case 4:
+		puts("Nothing to insert");
+		break;
+	case 5:
+		puts("Invalid search format");
+		break;
+	case 6:
+		puts("Internal error");
+		break;
+	case 7:
+		puts("Unrecognized command");
+		break;
+	case 8:
+		puts("tetete");
+		break;
+	case 9:
+		puts("Could not open file for reading");
+		break;
+	default:
+		puts("Unknown error");
+		break;
+	}
+}
+
+static int err( unsigned long int errno )
+{
+	terrno = errno;
+	if ( verrmsg )
+		lasterror();
+	else
+		puts((errno==8)?":3?":"?");
+	return 1;
+}
+
+static int bail( const char *mesg, ... )
 {
 	va_list args;
 	va_start(args,mesg);
@@ -27,7 +76,7 @@ int err( const char *mesg, ... )
 	return 1;
 }
 
-void savefileas( void )
+static int savefileas( void )
 {
 	int i = 0;
 	char *fname = malloc(2);
@@ -42,36 +91,43 @@ void savefileas( void )
 	FILE *fil = fopen(fname,"w");
 	if ( !fil )
 	{
-		err("te: could not open \"%s\"",fname);
 		free(fname);
-		return;
+		return err(9);
 	}
-	char **lin;
-	for ( lin = lines; lin; lin++ )
-		fprintf(fil,"%s\n",*lin);
+	for ( i = 0; i<linec; i++ )
+		fprintf(fil,"%s\n",lines[i]);
 	fclose(fil);
 	free(fname);
+	return 0;
 }
 
-void savefile( char *fname )
+static int savefile( char *fname )
 {
 	FILE *fil = fopen(fname,"w");
 	if ( !fil )
-	{
-		err("te: could not open \"%s\"",fname);
-		return;
-	}
-	char **lin;
-	for ( lin = lines; lin; lin++)
-		fprintf(fil,"%s\n",*lin);
+		return err(9);
+	int i;
+	for ( i = 0; i<linec; i++ )
+		fprintf(fil,"%s\n",lines[i]);
 	fclose(fil);
+	return 0;
 }
 
-int parsecmd( const char *cmd )
+static int parsecmd( const char *cmd )
 {
+	if ( !strcmp(cmd,":3") )
+		return err(8);
 	if ( !strcmp(cmd,"q") )
-	{
 		return 0;
+	if ( !strcmp(cmd,"E") )
+	{
+		verrmsg = !verrmsg;
+		return 1;
+	}
+	if ( !strcmp(cmd,"e") )
+	{
+		lasterror();
+		return 1;
 	}
 	if ( !strcmp(cmd,"v") )
 	{
@@ -80,14 +136,49 @@ int parsecmd( const char *cmd )
 	}
 	if ( !strcmp(cmd,"p") )
 	{
-		char **lin;
-		for ( lin = lines; *lin; lin++ )
-			printf("%s\n",*lin);
+		int i;
+		for ( i = 0; i<linec; i++ )
+			printf("%s\n",lines[i]);
 		return 1;
 	}
 	if ( !strcmp(cmd,"lc") )
 	{
 		printf("%d\n",linec);
+		return 1;
+	}
+	if ( cmd[0] == 'l' )
+	{
+		if ( cmd[1] == 0 )
+		{
+			printf("%s\n",lines[cur]);
+			return 1;
+		}
+		if ( (cmd[1] < '0') || (cmd[1] > '9') )
+			return err(2);
+		int pos = atoi(cmd+1);
+		if ( (pos < 0) || (pos > linec) )
+			return err(1);
+		printf("%s\n",lines[pos]);
+		return 1;
+	}
+	if ( cmd[0] == 's' )
+	{
+		if ( cmd[1] == 0 )
+		{
+			printf("%d\n",cur);
+			return 1;
+		}
+		if ( cmd[1] == 'e' )
+		{
+			cur = linec;
+			return 1;
+		}
+		if ( (cmd[1] < '0') || (cmd[1] > '9') )
+			return err(2);
+		int pos = atoi(cmd+1);
+		if ( (pos < 0) || (pos > linec) )
+			return err(1);
+		cur = pos;
 		return 1;
 	}
 	if ( !strcmp(cmd,"sa") )
@@ -100,31 +191,30 @@ int parsecmd( const char *cmd )
 		savefile(filen);
 		return 1;
 	}
-	printf("?\n");
-	return 1;
+	return err(7);
 }
 
 int main( int argc, char **argv )
 {
 	if ( argc <= 1 )
-		return err("te: no file specified\n");
+		return bail("te: no file specified\n");
 	if ( (doc = fopen(argv[1],"r")) == NULL )
 		doc = fopen(argv[1],"w");
 	if ( !doc )
-		return err("te: could not create \"%s\"\n",argv[1]);
+		return bail("te: could not create \"%s\"\n",argv[1]);
 	fclose(doc);
 	if ( (doc = fopen(argv[1],"r")) == NULL )
-		return err("te: could not read \"%s\"\n",argv[1]);
-	lines = readlines(doc);
+		return bail("te: could not read \"%s\"\n",argv[1]);
+	readlines(doc);
+	lines = gettext();
+	linec = getlen()-1;
 	fclose(doc);
 	filen = argv[1];
 	char cmd[256];
 	int ch = 0;
-	linec = lineslen(lines);
-	cur = linec-1;
+	cur = linec;
 	for ( ; ; )
 	{
-		printf(": ");
 		int i = 0;
 		while ( (i < 256) && (ch != '\n') )
 		{
@@ -138,7 +228,6 @@ int main( int argc, char **argv )
 		ch = 0;
 		i = 0;
 	}
-	freetext(lines);
-	free(lines);
+	freelines();
 	return 0;
 }

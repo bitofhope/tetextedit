@@ -6,100 +6,93 @@
 */
 #include "text.h"
 
-int lineslen( char **where )
+char **text = NULL;
+unsigned long int textlen = 0;
+
+char** gettext( void )
 {
-	int i = 0;
-	while ( *(where++) )
-		i++;
-	return i;
+	return text;
 }
 
-char *mkline( const char *content )
+unsigned long int getlen( void )
 {
-	char *new;
-	new = (content)?malloc(strlen(content+1)):malloc(2);
-	strcpy(new,(content)?content:"");
-	return new;
+	return textlen;
 }
 
-char** insline( char **where, int at, char *ln )
+void freelines( void )
 {
-	if ( !where || !ln )
-		return NULL;
-	int len = lineslen(where);
-	where = (char**)realloc(where,sizeof(char*)*(len+1));
-	memmove(where+at+1,where+at,sizeof(char*)*(len-at));
-	where[at] = ln;
-	where[len] = NULL;
-	return where;
+	unsigned long int i;
+	for ( i=0; i<textlen; i++ )
+		free(text[i]);
+	free(text);
 }
 
-void chline( char **where, int at, const char *content )
+static void setentry( unsigned long int idx, const char *ln )
 {
-	if ( !where )
+	if ( idx >= textlen )
 		return;
-	if ( where[at] )
-		where[at] = realloc(where[at],(content)?strlen(content+1):2);
+	if ( text == NULL )
+		return;
+	if ( text[idx] != NULL )
+		free(text[idx]);
+	text[idx] = malloc(strlen(ln)+1);
+	strcpy(text[idx],ln);
+}
+
+static void increasedict( void )
+{
+	if ( text == NULL )
+	{
+		text = malloc(sizeof(char*));
+		text[0] = NULL;
+	}
 	else
-		where[at] = malloc((content)?strlen(content+1):2);
-	strcpy(where[at],(content)?content:"");
-}
-
-char** rmline( char **where, int at )
-{
-	if ( !where )
-		return NULL;
-	int len = lineslen(where);
-	memmove(where+at,where+at+1,sizeof(char*)*(len-at));
-	where = (char**)realloc(where,sizeof(char*)*(len+1));
-	where[len-1] = NULL;
-	return where;
-}
-
-void freetext( char **where )
-{
-	if ( !where )
-		return;
-	while ( *(where++) )
 	{
-		printf("freeing line\n");
-		free(*where);
+		text = realloc(text,sizeof(char*)*(textlen+1));
+		text[textlen] = NULL;
 	}
 }
 
-char **readlines( FILE *from )
+static char* readline( FILE *dict )
 {
-	char *buf = NULL;
-	char **to = NULL;
-	char *nl;
-	int i = 0, j = 0, ch = 0, k = 0;
-	fseek(from,j,SEEK_SET);
-	to = malloc(sizeof(char*)*2);
-	do
+	unsigned long int i = 0;
+	int ch = 0;
+	char *line = NULL;
+	line = malloc(2);
+	while ( !feof(dict) )
 	{
-		ch = fgetc(from);
-		if ( (ch == EOF) && (i == 0) )
+		ch = fgetc(dict);
+		if ( ch == '\n' )
 		{
-			to[0] = NULL;
-			return to;
+			line = realloc(line,i+1);
+			line[i] = '\0';
+			break;
 		}
-		if ( ch != '\n' )
-		{
-			i++;
-			continue;
-		}
-		buf = malloc((i-j)+2);
-		fseek(from,j,SEEK_SET);
-		fgets(buf,(i-j)+2,from);
-		nl = mkline(buf);
-		to = (char**)realloc(to,sizeof(char**)*(k+2));
-		to[k] = nl;
-		to[++k] = NULL;
-		free(buf);
-		j = i+1;
-		fseek(from,i+1,SEEK_SET);
-		i++;
+		if ( feof(dict) )
+			break;
+		line = realloc(line,i+2);
+		line[i] = ch;
+		line[++i] = '\0';
 	}
-	while ( ch != EOF );
-	return to;
+	return line;
+}
+
+int readlines( FILE *dict )
+{
+	unsigned long int i = 0;
+	char *got = NULL;
+	if ( dict == NULL )
+		return 1;
+	while ( !feof(dict) )
+	{
+		increasedict();
+		got = readline(dict);
+		if ( got == NULL )
+			break;
+		textlen++;
+		setentry(i++,got);
+		free(got);
+		got = NULL;
+	}
+	return 0;
 }
