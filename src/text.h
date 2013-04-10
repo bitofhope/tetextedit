@@ -9,20 +9,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef struct line
-{
-	struct line *prev, *next;
-	char *text;
-} line_t;
-
-line_t *mkline( const char *content );
-void insline( line_t *at, line_t *ln );
-void chline( line_t *at, const char *content );
-line_t *rmline( line_t *at );
-line_t *lineat( line_t *lns, int pos );
-line_t *lastline( line_t *lns );
-void freetext( line_t *txt );
-line_t *readlines( FILE *from );
-
+int lineslen( char **where );
+char *mkline( const char *content );
+char** insline( char **where, int at, char *ln );
+void chline( char **where, int at, const char *content );
+char** rmline( char **where, int at );
+void freetext( char **where );
+char **readlines( FILE *from );
 #endif

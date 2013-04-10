@@ -6,99 +6,81 @@
 */
 #include "text.h"
 
-line_t *mkline( const char *content )
+int lineslen( char **where )
 {
-	line_t *new;
-	new = malloc(sizeof(line_t));
-	new->prev = NULL;
-	new->next = NULL;
-	new->text = (content)?malloc(strlen(content+1)):malloc(2);
-	strcpy(new->text,(content)?content:"");
+	int i = 0;
+	while ( *(where++) )
+		i++;
+	return i;
+}
+
+char *mkline( const char *content )
+{
+	char *new;
+	new = (content)?malloc(strlen(content+1)):malloc(2);
+	strcpy(new,(content)?content:"");
 	return new;
 }
 
-void insline( line_t *at, line_t *ln )
+char** insline( char **where, int at, char *ln )
 {
-	if ( !at )
+	if ( !where || !ln )
+		return NULL;
+	int len = lineslen(where);
+	where = (char**)realloc(where,sizeof(char*)*(len+1));
+	memmove(where+at+1,where+at,sizeof(char*)*(len-at));
+	where[at] = ln;
+	where[len] = NULL;
+	return where;
+}
+
+void chline( char **where, int at, const char *content )
+{
+	if ( !where )
 		return;
-	line_t *other;
-	other = at->next;
-	at->next = ln;
-	ln->prev = at;
-	ln->next = other;
-	if ( other )
-		other->prev = ln;
-}
-
-void chline( line_t *at, const char *content )
-{
-	if ( at->text )
-		at->text = realloc(at->text,(content)?strlen(content+1):2);
+	if ( where[at] )
+		where[at] = realloc(where[at],(content)?strlen(content+1):2);
 	else
-		at->text = malloc((content)?strlen(content+1):2);
-	strcpy(at->text,(content)?content:"");
+		where[at] = malloc((content)?strlen(content+1):2);
+	strcpy(where[at],(content)?content:"");
 }
 
-line_t *rmline( line_t *at )
+char** rmline( char **where, int at )
 {
-	line_t *ret = NULL;
-	if ( at->prev )
-		at->prev->next = at->next;
-	if ( at->next )
-		at->next->prev = at->prev;
-	if ( at->next )
-		ret = at->next;
-	free(at->text);
-	free(at);
-	return ret;
+	if ( !where )
+		return NULL;
+	int len = lineslen(where);
+	memmove(where+at,where+at+1,sizeof(char*)*(len-at));
+	where = (char**)realloc(where,sizeof(char*)*(len+1));
+	where[len-1] = NULL;
+	return where;
 }
 
-line_t *lineat( line_t *lns, int pos )
+void freetext( char **where )
 {
-	line_t *ret;
-	int i = 0;
-	for ( ret=lns; ret; ret=ret->next )
-		if ( (i++ >= pos) || (!ret->next) )
-			return ret;
-	return NULL;	/* shouldn't happen */
-}
-
-line_t *lastline( line_t *lns )
-{
-	line_t *ret;
-	for ( ret=lns; ret; ret=ret->next )
-		if ( !ret->next )
-			return ret;
-	return NULL;	/* shouldn't happen */
-}
-
-void freetext( line_t *txt )
-{
-	line_t *lines, *old;
-	lines = lastline(txt);
-	while ( lines )
+	if ( !where )
+		return;
+	while ( *(where++) )
 	{
-		old = lines;
-		lines = old->prev;
-		free(old->text);
-		free(old);
+		printf("freeing line\n");
+		free(*where);
 	}
 }
 
-line_t *readlines( FILE *from )
+char **readlines( FILE *from )
 {
 	char *buf = NULL;
-	line_t *to = NULL;
-	line_t *cur = NULL;
-	int i = 0, j = 0, ch = 0;
-	line_t *nl = to;
+	char **to = NULL;
+	char *nl;
+	int i = 0, j = 0, ch = 0, k = 0;
 	fseek(from,j,SEEK_SET);
+	to = malloc(sizeof(char*)*2);
 	do
 	{
 		ch = fgetc(from);
 		if ( (ch == EOF) && (i == 0) )
 		{
-			to = mkline(NULL);
+			to[0] = NULL;
 			return to;
 		}
 		if ( ch != '\n' )
@@ -106,22 +88,14 @@ line_t *readlines( FILE *from )
 			i++;
 			continue;
 		}
-		buf = malloc((i-j)+1);
+		buf = malloc((i-j)+2);
 		fseek(from,j,SEEK_SET);
-		fgets(buf,(i-j)+1,from);
+		fgets(buf,(i-j)+2,from);
 		nl = mkline(buf);
-		if ( !to )
-		{
-			to = nl;
-			cur = to;
-		}
-		else
-		{
-			insline(cur,nl);
-			cur = nl;
-		}
+		to = (char**)realloc(to,sizeof(char**)*(k+2));
+		to[k] = nl;
+		to[++k] = NULL;
 		free(buf);
-		buf = NULL;
 		j = i+1;
 		fseek(from,i+1,SEEK_SET);
 		i++;
