@@ -1,24 +1,25 @@
-/*
-	text.c : text structure by lines.
-	(C)2012-2013 Marisa Kirisame, UnSX Team.
-	te is a text editor.
-	Released under the MIT License.
-*/
-#include "text.h"
+/* mktext.c : make text array from file -- (C)Marisa Kirisame - MIT Licensed */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+/* global vars */
 char **text = NULL;
-unsigned long int textlen = 0;
+unsigned textlen = 0;
 
+/* retrieve array */
 char** gettext( void )
 {
 	return text;
 }
 
-unsigned long int getlen( void )
+/* retrieve length */
+unsigned getlen( void )
 {
 	return textlen;
 }
 
+/* deallocate text */
 void freelines( void )
 {
 	unsigned long int i;
@@ -27,7 +28,8 @@ void freelines( void )
 	free(text);
 }
 
-static void setentry( unsigned long int idx, const char *ln )
+/* make line */
+static void setentry( unsigned idx, const char *ln )
 {
 	if ( idx >= textlen )
 		return;
@@ -39,6 +41,7 @@ static void setentry( unsigned long int idx, const char *ln )
 	strcpy(text[idx],ln);
 }
 
+/* increment array */
 static void increasedict( void )
 {
 	if ( text == NULL )
@@ -53,9 +56,10 @@ static void increasedict( void )
 	}
 }
 
+/* read a line */
 static char* readline( FILE *dict )
 {
-	unsigned long int i = 0;
+	unsigned i = 0;
 	int ch = 0;
 	char *line = NULL;
 	line = malloc(2);
@@ -77,9 +81,10 @@ static char* readline( FILE *dict )
 	return line;
 }
 
+/* read text */
 int readlines( FILE *dict )
 {
-	unsigned long int i = 0;
+	unsigned i = 0;
 	char *got = NULL;
 	if ( dict == NULL )
 		return 1;

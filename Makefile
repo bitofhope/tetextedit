@@ -1,4 +1,5 @@
-CFLAGS := -std=c99 -Wall -Wextra -pedantic -O2 -pipe -Wno-unused-function -Wno-unused-parameter -Isrc/
+CFLAGS := -std=c99 -Wall -Wextra -Werror -pedantic -O2 -pipe \
+	  -Wno-unused-function -Wno-unused-parameter
 PREFIX ?= /usr/local
 .PHONY : clean install
 SOURCES := $(patsubst %.c,%.o,$(wildcard src/*.c))
