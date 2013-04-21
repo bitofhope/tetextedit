@@ -144,6 +144,11 @@ static unsigned parsecmd( const char *cmd )
 			printf("%s\n",lines[cur]);
 			return 1;
 		}
+		if ( cmd[1] == 'e' )
+		{
+			printf("%s\n",lines[linec-1]);
+			return 1;
+		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
 			return err(2);
 		unsigned pos = atoi(cmd+1);
@@ -162,7 +167,7 @@ static unsigned parsecmd( const char *cmd )
 		}
 		if ( cmd[1] == 'e' )
 		{
-			cur = linec;
+			cur = linec-1;
 			return 1;
 		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
