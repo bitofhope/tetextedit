@@ -1,14 +1,8 @@
-/* te.c : main code -- (C)Marisa Kirisame - MIT Licensed */
+/* te.c : te is a text editor -- (C)Marisa Kirisame - MIT Licensed */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
-/* prototypes from mktext */
-char** gettext( void );
-unsigned getlen( void );
-void freelines( void );
-int readlines( FILE *dict );
 
 /* consts */
 static const char *ver = "0.0.1";
@@ -31,11 +25,97 @@ static const unsigned errnum = 9;
 /* global vars */
 static char *filen = NULL;
 static FILE *doc = NULL;
-static char **lines = NULL;
-static unsigned linec = 0;
+static char **text = NULL;
+static unsigned textlen = 0;
 static unsigned cur = 0;
 static unsigned terrno = 0;
 static unsigned verrmsg = 0;
+
+/* deallocate text */
+void freelines( void )
+{
+	unsigned long int i;
+	for ( i=0; i<textlen; i++ )
+		free(text[i]);
+	free(text);
+}
+
+/* make line */
+static void setentry( unsigned idx, const char *ln )
+{
+	if ( idx >= textlen )
+		return;
+	if ( text == NULL )
+		return;
+	if ( text[idx] != NULL )
+		free(text[idx]);
+	text[idx] = malloc(strlen(ln)+1);
+	strcpy(text[idx],ln);
+}
+
+/* increment array */
+static void increasedict( void )
+{
+	if ( text == NULL )
+	{
+		text = malloc(sizeof(char*));
+		text[0] = NULL;
+	}
+	else
+	{
+		text = realloc(text,sizeof(char*)*(textlen+1));
+		text[textlen] = NULL;
+	}
+}
+
+/* read a line */
+static char* readline( FILE *dict )
+{
+	unsigned i = 0;
+	int ch = 0;
+	char *line = NULL;
+	line = malloc(2);
+	while ( !feof(dict) )
+	{
+		ch = fgetc(dict);
+		if ( ch == '\n' )
+		{
+			line = realloc(line,i+1);
+			line[i] = '\0';
+			break;
+		}
+		if ( feof(dict) )
+			break;
+		line = realloc(line,i+2);
+		line[i] = ch;
+		line[++i] = '\0';
+	}
+	return line;
+}
+
+/* read text */
+int readlines( FILE *dict )
+{
+	unsigned i = 0;
+	char *got = NULL;
+	if ( dict == NULL )
+		return 1;
+	while ( !feof(dict) )
+	{
+		increasedict();
+		got = readline(dict);
+		if ( got == NULL )
+			break;
+		textlen++;
+		setentry(i++,got);
+		free(got);
+		got = NULL;
+	}
+	/* ignore last line */
+	textlen--;
+	free(text[textlen]);
+	return 0;
+}
 
 /* error */
 static const char* lasterror( void )
@@ -76,8 +156,8 @@ static unsigned savefileas( void )
 	FILE *fil = fopen(fname,"w");
 	if ( !fil )
 		return err(9);
-	for ( i = 0; i<linec; i++ )
-		fprintf(fil,"%s\n",lines[i]);
+	for ( i = 0; i<textlen; i++ )
+		fprintf(fil,"%s\n",text[i]);
 	fclose(fil);
 	return 0;
 }
@@ -89,8 +169,8 @@ static unsigned savefile( char *fname )
 	if ( !fil )
 		return err(9);
 	unsigned i;
-	for ( i = 0; i<linec; i++ )
-		fprintf(fil,"%s\n",lines[i]);
+	for ( i = 0; i<textlen; i++ )
+		fprintf(fil,"%s\n",text[i]);
 	fclose(fil);
 	return 0;
 }
@@ -126,14 +206,14 @@ static unsigned parsecmd( const char *cmd )
 	if ( !strcmp(cmd,"p") )
 	{
 		unsigned i;
-		for ( i = 0; i<linec; i++ )
-			printf("%s\n",lines[i]);
+		for ( i = 0; i<textlen; i++ )
+			printf("%s\n",text[i]);
 		return 1;
 	}
 	/* count */
 	if ( !strcmp(cmd,"lc") )
 	{
-		printf("%d\n",linec);
+		printf("%d\n",textlen);
 		return 1;
 	}
 	/* line print */
@@ -141,20 +221,20 @@ static unsigned parsecmd( const char *cmd )
 	{
 		if ( cmd[1] == 0 )
 		{
-			printf("%s\n",lines[cur]);
+			printf("%s\n",text[cur]);
 			return 1;
 		}
 		if ( cmd[1] == 'e' )
 		{
-			printf("%s\n",lines[linec-1]);
+			printf("%s\n",text[textlen-1]);
 			return 1;
 		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
 			return err(2);
 		unsigned pos = atoi(cmd+1);
-		if ( pos > linec )
+		if ( pos > textlen )
 			return err(1);
-		printf("%s\n",lines[pos]);
+		printf("%s\n",text[pos]);
 		return 1;
 	}
 	/* move cursor */
@@ -167,13 +247,13 @@ static unsigned parsecmd( const char *cmd )
 		}
 		if ( cmd[1] == 'e' )
 		{
-			cur = linec-1;
+			cur = textlen-1;
 			return 1;
 		}
 		if ( (cmd[1] < '0') || (cmd[1] > '9') )
 			return err(2);
 		unsigned pos = atoi(cmd+1);
-		if ( pos > linec )
+		if ( pos > textlen )
 			return err(1);
 		cur = pos;
 		return 1;
@@ -206,13 +286,11 @@ int main( int argc, char **argv )
 		return bail("te: cannot read \"%s\"\n",argv[1]);
 	/* make array */
 	readlines(doc);
-	lines = gettext();
-	linec = getlen()-1;
 	fclose(doc);
 	filen = argv[1];
 	char cmd[256];
 	int ch = 0;
-	cur = linec;
+	cur = textlen;
 	/* main loop */
 	for ( ; ; )
 	{
