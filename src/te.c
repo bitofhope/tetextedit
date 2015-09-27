@@ -127,7 +127,7 @@ static const char* lasterror( void )
 static int err( unsigned errno )
 {
 	terrno = errno;
-	puts((verrmsg)?lasterror():(":3?"+2*(errno!=8)));
+	puts((verrmsg)?lasterror():(&":3?"[2*(errno!=8)]));
 	return 1;
 }
 
